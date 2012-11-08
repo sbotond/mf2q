@@ -11,7 +11,7 @@ all:
 
 ct:
 	git log --graph
-com: *.R
+com:
 	git commit -a
 push:
 	git push --all

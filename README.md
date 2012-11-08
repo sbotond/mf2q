@@ -6,12 +6,12 @@ substitution per unit time from mutation count data using the DCFreq method.
 
 Issue <tt>make</tt> to run tests using input files under <tt>t</tt>.
 
-## Reference
+### Reference
 
 Kosiol C., Goldman N. (2005) Different versions of the Dayhoff rate matrix.
  Mol Biol Evol 22:193-199 [doi:10.1093/molbev/msi005](http://dx.doi.org/10.1093/molbev/msi005)
 
-## Usage
+### Usage
 
 ```
 usage: mf2q [-h] [-o out_file] [-t tolm] [-s] [input file]
@@ -29,7 +29,7 @@ optional arguments:
                cannot be recovered.
   -s           Do not scale the Q matrix (default: False).
 ```
-## Example input
+### Example input
 
 ```
     T   C   A   G
@@ -39,7 +39,7 @@ A   38  153 355 453
 G   38  153 339 468
 ```
 
-## Example output
+### Example output
 
 ```
 # Symbols:
@@ -55,7 +55,7 @@ T	C	A	G
 6.350997e-02	2.559674e-01	5.665757e-01	-8.860531e-01
 ```
 
-## Dependencies
+### Dependencies
 
 * [python](http://www.python.org/) (>= 2.7.1)
 * [numpy](http://pypi.python.org/pypi/numpy/) (>= 1.6.1)
