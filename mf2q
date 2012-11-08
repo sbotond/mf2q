@@ -1,0 +1,218 @@
+#!/usr/bin/env python
+#  Copyright (C) 2012 by Botond Sipos, European Bioinformatics Institute
+#  sbotond@ebi.ac.uk
+#
+#  This file is part of the mf2q software for simulating RNA-seq
+#  library preparation with PCR biases and size selection.
+#
+#  mf2q is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  mf2q is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with mf2q.  If not, see <http://www.gnu.org/licenses/>.
+
+
+import      sys
+import      numpy           as      np
+import      argparse
+import      os
+import      time
+
+VERSION="1.0"
+
+##
+## Utility functions and classes:
+##
+
+def parse_arguments():
+    """ Parse arguments """
+    global VERBOSE_MODE
+    parser = argparse.ArgumentParser(description='Produce scaled Q matrices from mutation counts using the DCFreq method (version %s).' % VERSION)
+    parser.add_argument('input_file', metavar='input file', type=str, nargs='?',default=None,
+                   help='Mutation counts in a tab separated format(row=from, column=to, see examples).')
+    parser.add_argument('-f', metavar='freq_file', type=str, default="", help='Symbol frequency file.')
+    parser.add_argument('-o', metavar='out_file', type=str, default="", help='Output file')
+    parser.add_argument('-t', metavar='tolm', type=float, default=5.0, help='Tolerance multiplier. Increase it if equlibrium distribution cannot be recovered.')
+    parser.add_argument('-s', action="store_true", default=False, help='Do not scale the Q matrix (default: False).')
+    args            = parser.parse_args()
+
+    if args.input_file is None:
+        print >>sys.stderr, "No input file given!"
+        sys.exit(1)
+
+    if args.o == "":
+        args.o = os.path.basename(args.input_file) + ".q"
+
+    return args
+
+class Log:
+    """ Logging utility class """
+    def __init__(self, fname=None, level=0):
+        self.level = level
+        if fname is None:
+            self.fname  = "<sys.stderr>"
+            self.file   = sys.stderr
+        else:
+            self.file   = open(fname, "w")
+            self.fname  = fname
+
+    def close(self):
+        self.file.flush()
+        self.file.close()
+
+    def log(self, message):
+        if self.level < 0:
+            return
+        self.file.write("[%s] %s\n" % (time.strftime("%y-%m-%d %H:%M:%S"), message) )
+
+    def vlog(self, message):
+        if self.level < 1:
+            return
+        self.file.write("[%s] %s\n" % (time.strftime("%y-%m-%d %H:%M:%S"), message) )
+
+    def fatal(self, message):
+        self.file.write("[%s] %s\n" % (time.strftime("%y-%m-%d %H:%M:%S"), message) )
+        sys.exit(1)
+
+##
+## Specific functions:
+##
+
+def parse_counts(fname, log):
+    """ Parse mutation count file """
+    fh      = open(fname)
+    # Read in "to header"
+    to      = fh.readline().split()
+
+    fr      = []
+    tmp     = [] 
+    
+    # Read in "from header" and data:
+    for l in fh:
+        t   = l.split()
+        fr.append(t.pop(0))
+        tmp.append(t)
+    
+    # Check if from and to headers match:
+    if sorted(to) != sorted(fr):
+        log.fatal("From/to header mismatch!")
+
+    size    = len(to)
+    c       = np.zeros((size, size), dtype=float)
+    labels  = to
+
+    for i in xrange(size):
+        ii  = labels.index(fr[i])
+        for j in xrange(size):
+            jj = labels.index(to[j])
+            c[ii,jj] = float(tmp[i][j])
+    return (c, labels)
+
+def calc_freqs(n):
+    """ Calculate frequencies from mutation counts """
+    f     = np.sum(n, axis=1)/np.sum(n)
+    return f
+
+def load_freqs(fname, a, L):
+    """ Load symbol frequencies from file """
+    fh  = open(fname)
+    f   = np.zeros((len(a)),dtype=float)
+    for l in fh:
+       l = l.strip() 
+       s, p = l.split()
+       f[a.index(s)] = float(p)
+    # Re-normalise frequencies, just to be sure:
+    f   = f/np.sum(f)
+    
+    L.log("Using explicitly specified frequencies:")
+    L.log("%s" % a)
+    L.log("%s" % f)
+    return f
+
+def calc_eq_dist(q, tolm, L):
+    """ Get the equilibrium distribution of a CTMC using eigen-decomposition """
+    epsilon         = np.finfo(np.double).eps * 10**tolm
+    u,v             = np.linalg.eig(q.T)
+    i               = np.where(np.abs(u) < epsilon)[0]
+    if len(i) == 0:
+        L.fatal("Failed to calculate equilibrium distribution using tolm=%g and epsilon=%g. Try to increase the tolerance multiplier." % (tolm, epsilon))
+    eq_dist         = v[:,i]  
+    eq_dist         = eq_dist/np.sum(eq_dist)
+    eq_dist         = np.squeeze(np.asarray(eq_dist))
+    return eq_dist
+
+def scale_q(q, eq, L):
+    """ Scale Q matrix """
+    # Calculate expected number of substitutions at equilibrium:
+    exp_subst       = 0
+    for i in xrange(q.shape[0]):
+        for j in xrange(q.shape[1]):
+            if i == j: continue
+            exp_subst += eq[i] * q[i,j]
+    # Calculate scaling factor and return scaled
+    # Q matrix:
+    scaling_factor = 1.0/exp_subst
+    L.log("Scaling the Q matrix by a factor of %g" % scaling_factor)
+    return q * scaling_factor
+
+def fill_diags(q):
+    """ Fill the diagonal elements with the negative sum of the rows """
+    # Remove diagonal elements:
+    q  = q - np.diag(np.diag(q))
+    # Fill in diagonal elements:
+    q  = q - np.diag(np.sum(q,axis=1))
+    return q
+
+def dump_list(l,fh, f=lambda x: "%e" % x):
+    l = map(f, l)
+    fh.write("\t".join(l)+"\n")
+
+def dump_results(a, q, eq, fname):
+    fh  = open(fname, 'w')
+    fh.write("# Symbols:\n")
+    dump_list(a, fh, f=str)
+    fh.write("\n# Equilibrium distribution:\n")
+    dump_list(eq, fh)
+    fh.write("\n# Q matrix:\n")
+    for i in xrange(q.shape[0]):
+        dump_list(q[i,], fh)
+##
+## Main section:
+##
+
+args    = parse_arguments()
+L       = Log()
+
+# Parse mutation counts:
+n,a     = parse_counts(args.input_file, L)
+
+if args.f != "":
+    f   = load_freqs(args.f, a, L) # Load frequencies.
+else:
+    f   = calc_freqs(n)            # Calculate frequencies.
+
+# Calculate off-diagonal elements of the Q matrix:
+q   = n/f
+
+# Fill in the diagonal elements of the Q matrix
+q   = fill_diags(q)
+
+# Calculate the equlibrium distribution:
+eq  = calc_eq_dist(q, args.t, L)
+
+# Scale the Q matrix in order to have one expected 
+# substitution per unit time:
+if not args.s:
+    q = scale_q(q, eq, L)
+
+# Dump the Q matrix and equilibrium distribution to
+# output file:
+dump_results(a, q, eq, args.o)
+
