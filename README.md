@@ -1,5 +1,5 @@
 mf2q
-====
+----
 
 <tt>mf2q</tt> is a Python script calculating Q matrices scaled to give one expected
 substitution per unit time from mutation count data using the DCFreq method.
