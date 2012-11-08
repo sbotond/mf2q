@@ -14,20 +14,22 @@ Kosiol C., Goldman N. (2005) Different versions of the Dayhoff rate matrix.
 ### Usage
 
 ```
-usage: mf2q [-h] [-o out_file] [-t tolm] [-s] [input file]
+usage: mf2q [-h] [-f freq_file] [-o out_file] [-t tolm] [-s] [input file]
 
 Produce scaled Q matrices from mutation counts using the DCFreq method
 (version 1.0).
 
 positional arguments:
-  input file   Mutation counts in a tab separated format.
+  input file    Mutation counts in a tab separated format(row=from, column=to,
+                see examples).
 
 optional arguments:
-  -h, --help   show this help message and exit
-  -o out_file  Output file
-  -t tolm      Tolerance multiplier. Increase it if equilibrium distribution
-               cannot be recovered.
-  -s           Do not scale the Q matrix (default: False).
+  -h, --help    show this help message and exit
+  -f freq_file  Symbol frequency file.
+  -o out_file   Output file
+  -t tolm       Tolerance multiplier. Increase it if equilibrium distribution
+                cannot be recovered.
+  -s            Do not scale the Q matrix (default: False).
 ```
 ### Example input
 
