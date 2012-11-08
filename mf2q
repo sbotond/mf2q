@@ -39,7 +39,7 @@ def parse_arguments():
                    help='Mutation counts in a tab separated format(row=from, column=to, see examples).')
     parser.add_argument('-f', metavar='freq_file', type=str, default="", help='Symbol frequency file.')
     parser.add_argument('-o', metavar='out_file', type=str, default="", help='Output file')
-    parser.add_argument('-t', metavar='tolm', type=float, default=5.0, help='Tolerance multiplier. Increase it if equlibrium distribution cannot be recovered.')
+    parser.add_argument('-t', metavar='tolm', type=float, default=5.0, help='Tolerance multiplier. Increase it if equilibrium distribution cannot be recovered.')
     parser.add_argument('-s', action="store_true", default=False, help='Do not scale the Q matrix (default: False).')
     args            = parser.parse_args()
 
@@ -204,7 +204,7 @@ q   = n/f
 # Fill in the diagonal elements of the Q matrix
 q   = fill_diags(q)
 
-# Calculate the equlibrium distribution:
+# Calculate the equilibrium distribution:
 eq  = calc_eq_dist(q, args.t, L)
 
 # Scale the Q matrix in order to have one expected 
