@@ -140,10 +140,10 @@ def calc_eq_dist(q, tolm, L):
     """ Get the equilibrium distribution of a CTMC using eigen-decomposition """
     epsilon         = np.finfo(np.double).eps * 10**tolm
     u,v             = np.linalg.eig(q.T)
-    i               = np.where(np.abs(u) < epsilon)[0]
+    i               = np.where(np.abs(np.real(u)) < epsilon)[0]
     if len(i) == 0:
         L.fatal("Failed to calculate equilibrium distribution using tolm=%g and epsilon=%g. Try to increase the tolerance multiplier." % (tolm, epsilon))
-    eq_dist         = v[:,i]  
+    eq_dist         = np.real(v[:,i])
     eq_dist         = eq_dist/np.sum(eq_dist)
     eq_dist         = np.squeeze(np.asarray(eq_dist))
     return eq_dist
@@ -199,7 +199,10 @@ else:
     f   = calc_freqs(n)            # Calculate frequencies.
 
 # Calculate off-diagonal elements of the Q matrix:
-q   = n/f
+n   = np.matrix(n)
+q   = n/np.transpose(np.matrix(f))
+q   = np.array(q)
+
 
 # Fill in the diagonal elements of the Q matrix
 q   = fill_diags(q)
